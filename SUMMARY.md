@@ -13,3 +13,7 @@
 * [分布式系统](computer-science/fen-bu-shi-xi-tong.md)
 * [Rust](computer-science/rust.md)
 * [云原生](computer-science/yun-yuan-sheng.md)
+
+## 🛰 OTHERS
+
+* [python](others/python.md)

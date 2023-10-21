@@ -955,6 +955,331 @@ False
 
 
 
+## 26.隐式序列
+
+一个序列（sequence）不一定要把每个元素显式存储在计算机的内存中。换句话说，我们可以建立一个对象（object），它提供对某个序列的访问，而无需事先计算每个元素的值。 取而代之，我们只在有需要的时候才计算元素。
+
+这个想法的一个例子为在第 2 章所介绍的 `range` 容器（container）类型，`range` 表示连续、有范围的整数序列，然而，该序列的每个元素并不是显式储存在内存中的。 相反，当从 `range` 访问某个元素时，才会进行计算来求得其值。因此，我们可以在不需要很多内存来表示非常大范围的整数。只有端点会被储存为 `range` 对象的一部份。
+
+```
+>>> r = range(10000,1000000000)
+>>> r[45006230]
+45016230
+```
+
+在这个例子中，当创建 `range` 实例时，并没有存储此范围内的 999,990,000 整数。反之，`range` 对像将第一个元素 10,000 添加到索引 45,006,230 来得出元素 45,016,230。按需求来计算值，而不是从现有的表示中去检索他们， 这是惰性计算（Lazy computation）的一个范例。
+
+
+
+## 27.迭代器
+
+Python 和许多其他编程语言都提供了一种统一的方法来按照顺序地处理容器内的元素，称为迭代器（iterators）迭代器是一种对象，提供对值逐一顺序访问的功能。 迭代器抽象有两个组件：
+
+* 检索下一个元素的机制
+* 到达序列末尾并且没有剩余元素，发出信号的机制
+
+对于任何容器，例如 `list` 或 `range`，都可以通过调用内置的 `iter` 函数来获取迭代器。使用内置的 `next` 函数来访问迭代器的内容。
+
+```
+>>> primes = [2, 3, 5, 7]
+>>> type(primes)
+<class 'list'>
+>>> iterator = iter(primes)
+>>> type(iterator)
+<class 'list-iterator'>
+>>> next(iterator)
+2
+>>> next(iterator)
+3
+>>> next(iterator)
+5
+```
+
+在 Python 中表示没有更多可用值的方式是在调用 `next` 时引发 `StopIteration` 异常。可以使用 `try` 语句来处理此错误。
+
+```
+>>> next(iterator)
+7
+>>> next(iterator)
+Traceback (most recent call las):
+  File "<stdin>", line 1, in <module>
+StopIteration
+
+>>> try:
+        next(iterator)
+    except StopIteration:
+        print('No more values')
+No more values
+```
+
+在迭代器上调用 `iter` 将返回该迭代器，而不是其副本。 Python 中包含此行为，以便程序员可以对某个值调用 `iter` 来获取迭代器，而不必担心它是迭代器还是容器。
+
+> 译者注：和 `list` 不同！
+
+```
+>>> v = iter(t)  # v 绑定到 r 的第二个迭代器
+>>> next(v)      # u, v, t 都为 r 的第二个迭代器
+8
+>>> next(u)
+9
+>>> next(t)
+10
+```
+
+
+
+### 可迭代性
+
+任何可以产生迭代器的值都称为可迭代值（iterable vallue）。 在 Python 中，可迭代值是任何可以传递给内置 `iter` 函数的值。 可迭代对象包括：
+
+* **序列值**：例如字符串（string）和元组（tuples）
+* **容器**：例如集合（sets）和字典（dictionaries）
+
+迭代器也是可迭代的，因为它们可以传递给 `iter` 函数。
+
+即使是无序集合（例如字典），在生成迭代器时也必须定义其内容的顺序。 字典和集合是无序的，因为程序员无法控制迭代的顺序，但 Python 确实在其规范中保证了有关其顺序的某些属性。
+
+> 译者注：现在 Python 3.6+ 版本，字典的顺序是键值对（key-value pair）加入字典时的顺序；在 Python 3.5 和之前的版本，字典是无顺序的
+
+如果字典由于添加或删除键而导致其结构发生变化，则所有迭代器都会失效， 并且未来的迭代器可能会对其内容顺序进行任意更改。另一方面，更改现有键的值不会更改内容的顺序或使迭代器无效。
+
+
+
+### 内置迭代器
+
+有几个内置函数将可迭代值作为参数，并返回迭代器。这些函数广泛用于惰性序列处理
+
+`map` 函数是惰性的：调用它时并不会执行计算，直到返回的迭代器被 `next` 调用
+
+相反，会创建一个迭代器对象，如果使用 `next` 查询， 该迭代器对象可以返回结果。我们可以在下面的示例中观察到这一事实，其中对 `print` 的调用被延迟，直到从 `doubled` 迭代器请求相应的元素为止。
+
+```
+>>> def double_and_print(x):
+        print('***', x, '=>', 2*x, '***')
+        return 2*x
+>>> s = range(3, 7)
+>>> doubled = map(double_and_print, s)  # double_and_print 未被调用
+>>> next(doubled)                       # double_and_print 调用一次
+*** 3 => 6 ***
+6
+>>> next(doubled)                       # double_and_print 再次调用
+*** 4 => 8 ***
+8
+>>> list(doubled)                       # double_and_print 再次调用兩次
+*** 5 => 10 ***                         # list() 会把剩余的值都计算出来并生成一个列表
+*** 6 => 12 ***
+[10, 12]
+```
+
+`filter` 函数返回一个迭代器， `zip` 和 `reversed` 函数也返回迭代器。
+
+
+
+### for语句
+
+Python 中的 `for` 语句是对迭代器进行操作。 如果对象具有返回迭代器的 `__iter__` 方法（method），则表示对象是可迭代的。
+
+可迭代对象可以是 `for` 语句标题中 `<expression>` 的值：
+
+```
+for <name> in <expression>:
+    <suite>
+```
+
+执行 `for` 语句，Python 会评估标头（header）`<expression>`，它必须为可迭代的值。然后，对该值调用 `__iter__` 方法。
+
+在触发 `StopIteration` 异常之前，Python 会重复调用该迭代器上的 `__next__` 方法，并将结果绑定到 `for` 语句中的 `<name>`。然后，执行 `<suite>`。
+
+```
+>>> counts = [1, 2, 3]
+>>> for item in counts:
+        print(item)
+1
+2
+3
+```
+
+有了上述迭代器的知识，现在我们就可以用 `while`、赋值、 `try` 语句来实现 `for` 语句的执行规则。
+
+```
+>>> items = counts.__iter__()
+>>> try:
+        while True:
+             item = items.__next__()
+             print(item)
+    except StopIteration:
+        pass
+1
+2
+3
+```
+
+以上例子，通过调用 `counts` 的 `__iter__` 方法返回的迭代器绑定到一个名称项（`items`）， 以便可以依次查询每个元素。 `StopIteration` 异常的处理子句不执行任何操作，但处理异常提供了退出 while 循环的控制机制。
+
+要在 `for` 循环中使用迭代器，迭代器还必须具有 `__iter__` 方法。
+
+迭代器类型 [Python 文档](http://docs.python.org/3/library/stdtypes.html#iterator-types) 的部分，建议迭代器有一个返回迭代器本身的 `__iter__` 方法，这样所有的迭代器都是可迭代的。
+
+
+
+## 28.生成器
+
+上面的 Letters 和 Positives（字母和正整数）对象要求我们引入一个新的字段（field）`self.current` 到我们的对象中，以跟踪通过序列的进度。 对于像上面所示的简单序列，这可以很容易地完成。然而，对于复杂的序列来说， `__next__` 方法在计算中保存其位置可能相当困难。 生成器（Generators）使我们能够通过利用 Python 解析器（Interpreter）的功能来定义更复杂的迭代。
+
+生成器是由一种特殊类型的函数 **生成器函数** 返回的迭代器。 生成器函数与常规函数不同之处在于，它们在其主体内不包含 `return` 语句，而是使用 `yield` 语句来返回一系列元素。
+
+生成器不使用对象的属性来跟踪它们在序列中的进度。 相反，它们控制生成器函数的执行，在每次调用生成器的 `__next__` 方法时执行，直到下一个 `yield` 语句被执行为止。使用生成器函数可以更简洁地实现 `Letters` 迭代器。
+
+```
+>>> def letters_generator():
+        current = 'a'
+        while current <= 'd':
+            yield current
+            current = chr(ord(current) + 1)
+
+>>> for letter in letters_generator():
+        print(letter)
+a
+b
+c
+d
+```
+
+即使我们从未明确定义过 `__iter__` 或 `__next__` 方法， `yield` 语句表明我们正在定义一个生成器函数。 当调用时，生成器函数不返回特定的返回值，而是返回一个生成器（一种迭代器类型），该生成器本身可以返回所产出（yields）的值。
+
+生成器对象具有 `__iter__` 和 `__next__` 方法，每次调用 `__next__` 方法都会从之前离开的地方继续执行生成器函数，直到另一个 `yield` 语句被执行为止。
+
+当第一次调用 `__next__` 时，程序会执行 `letters_generator` 函数的语句，直到遇到 `yield` 语句。然后，它暂停并返回 `current` 的值。 `yield` 语句不会销毁新建的环境，而是保留它供以后使用。
+
+当再次调用 `__next__` 时，执行会从上次离开的地方继续。 `current` 的值以及 `letters_generator` 作用域内的任何其他绑定名称的值在多次调用 `__next__` 之下都会保留。
+
+* 我们可以通过手动调用 `__next__()` 来遍历生成器：
+
+```
+>>> letters = letters_generator()
+>>> type(letters)
+<class 'generator'>
+>>> letters.__next__()
+'a'
+>>> letters.__next__()
+'b'
+>>> letters.__next__()
+'c'
+>>> letters.__next__()
+'d'
+>>> letters.__next__()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+StopIteration
+```
+
+生成器在第一次调用 `__next__` 之前，不会执行任何在生成器函数内的语句。生成器会触发 `StopIteration` 异常当它遍历完生成器函数中定义的范围后。
+
+
+
+## 29.可迭代接口
+
+如果对一个对象调用其 `__iter__` 方法会返回一个迭代器，则称为可迭代的（iterable）， 可迭代值表示数据的集合，它们提供了一种可能产生多个迭代器的固定表示。
+
+例如，下面的 `Letters` 类的实例表示连续字母的序列。每次调用 `__iter__` 方法时，都会构造一个新的 `LetterIter` 实例，该实例允许顺序访问序列的内容。
+
+> 译者注：这里没有 `LetterIter` 的实现，就把他当作可迭代的值。
+
+```
+>>> class Letters:
+        def __init__(self, start='a', end='e'):
+            self.start = start
+            self.end = end
+        def __iter__(self):
+            return LetterIter(self.start, self.end)
+```
+
+内置 `iter` 函数在其参数上调用 `__iter__` 方法。在下面的表达式序列中，从同一可迭代序列所衍生的两个迭代器独立地按顺序产生字母。
+
+```
+>>> b_to_k = Letters('b', 'k')
+>>> first_iterator = b_to_k.__iter__()
+>>> next(first_iterator)
+'b'
+>>> next(first_iterator)
+'c'
+>>> second_iterator = iter(b_to_k)
+>>> second_iterator.__next__()
+'b'
+>>> first_iterator.__next__()
+'d'
+>>> first_iterator.__next__()
+'e'
+>>> second_iterator.__next__()
+'c'
+>>> second_iterator.__next__()
+'d'
+```
+
+* `Letters` 实例 `b_to_k`
+* `LetterIter` 迭代器实例 `first_iterator` 和 `secondary_iterator`
+
+他们的不同之处在于，`Letters` 实例不会更改，而迭代器实例会随着每次调用 `next`（或等效地，每次调用 `__next__` ）而更改。迭代器通过顺序数据跟踪进度，而可迭代则代表数据本身。
+
+Python 中的许多内置函数都采用可迭代参数并返回迭代器。 例如，前文所提到过的 `map` 函数接受一个函数和一个可迭代对象。它返回一个迭代器，该迭代器将函数参数应用于可迭代参数中的每个元素的结果。
+
+```
+>>> caps = map(lambda x: x.upper(), b_to_k)
+>>> next(caps)
+'B'
+>>> next(caps)
+'C'
+```
+
+## 30.使用 Yield 创建可迭代对象[​](https://composingprograms.netlify.app/4/2#\_4-2-7-%E4%BD%BF%E7%94%A8-yield-%E5%88%9B%E5%BB%BA%E5%8F%AF%E8%BF%AD%E4%BB%A3%E5%AF%B9%E8%B1%A1) <a href="#427-shi-yong-yield-chuang-jian-ke-die-dai-dui-xiang" id="427-shi-yong-yield-chuang-jian-ke-die-dai-dui-xiang"></a>
+
+在 Python 中，迭代器只对底层数据系列进行一次遍历。在遍历一次之后，当调用 `__next__()` 时， 迭代器将引发 `StopIteration` 异常。许多应用程序需要多次对元素进行迭代。例如，我们必须多次遍历列表，以列举所有元素对。
+
+```
+>>> def all_pairs(s):
+        for item1 in s:
+            for item2 in s:
+                yield (item1, item2)
+>>> list(all_pairs([1, 2, 3]))
+[(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2), ( 3, 3)]
+```
+
+序列本身并不是迭代器，而是可迭代的对象。在 Python 中，可迭代的接口由一个单独的方法 `__iter__` 组成，该方法返回一个迭代器。 Python 中的内置序列类型在调用它们的 `__iter__` 方法时会返回新的迭代器实例。如果可迭代对象每次调用 `__iter__` 时返回一个新的迭代器实例，那么它可以被多次迭代。
+
+可以通过实现可迭代接口来定义新的可迭代类。例如，下面的可迭代 `LettersWithYield` 类，当每次调用 `__iter__` 时，都会返回一个新的字母迭代器。
+
+```
+>>> class LettersWithYield:
+        def __init__(self, start='a', end='e')
+            self.start = start
+            self.end = end
+        def __iter__(self):
+            next_letter = self.start
+            while next_letter < self.end:
+                yield next_letter
+                next_letter = chr(ord(next_letter) + 1)
+```
+
+`__iter__` 方法是一个生成器函数；它返回一个生成器对象，该对像生成字母 “a” 到 “d” ，然后停止。每次我们调用此方法时，新的生成器都会开始重新遍历顺序数据。
+
+```
+>>> letters = LettersWithYield()
+>>> list(all_pairs(letters))[:5]
+[('a', 'a'), ('a', 'b'), ('a', 'c'), ('a', 'd'), ('b', 'a') ]
+```
+
+> 译者注：在 Python 3.3 中，加入了 `yield from` 语句，可以在 [Lecture](https://www.youtube.com/watch?v=eIBV4fsxnjE\&list=PL6BsET-8jgYXMKOdcoi0Hy\_Gn4fuY\_XzL\&index=7) 或是 [Python 3.3 更新文档](https://docs.python.org/3/whatsnew/3.3.html) 取得更多相关资讯。
+
+
+
+## 31.stream
+
+> 用的少，先简单记个概念，后面有需要的时候在去补
+
+流（Streams）提供了另一种隐式表示连续数据的方法。 `Stream` 是一个惰性计算的链表（linked-list）。 类似于第 2 章中的 `Link` 类， `Stream` 实例会对其第一个元素和其余（rest）部分的请求做出响应。就像 Link 一样， `Stream` 的其余部分本身也是一个 `Stream` 。但与 `Link` 不同的是， `Stream` 的其余部分仅在查找时计算，而不是提前存储。也就是说， `Stream` 的其余部分是惰性计算的。
+
+
+
 
 
 

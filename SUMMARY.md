@@ -4,6 +4,7 @@
 
 ## 🚀 Computer Science
 
+* [C++](computer-science/c++.md)
 * [计算机网络](computer-science/ji-suan-ji-wang-luo.md)
 * [操作系统](computer-science/cao-zuo-xi-tong.md)
 * [MySQL](computer-science/mysql.md)

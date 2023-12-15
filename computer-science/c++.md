@@ -1,3 +1,7 @@
+---
+description: c++入门从此开始>_<
+---
+
 # C++
 
 在 C++ 中初始化变量有 6 种基本方法：
@@ -627,6 +631,709 @@ int main()
 ```
 
 Now when the program is compiled, function _getSquareSides_ will have just one definition (via _square.cpp_), so the linker is happy. File _main.cpp_ is able to call this function (even though it lives in _square.cpp_) because it includes _square.h_, which has a forward declaration for the function (the linker will connect the call to _getSquareSides_ from _main.cpp_ to the definition of _getSquareSides_ in _square.cpp_).
+
+### pragma once
+
+Modern compilers support a simpler, alternate form of header guards using the `#pragma` preprocessor directive:
+
+```cpp
+#pragma once
+
+// your code here
+```
+
+`#pragma once` serves the same purpose as header guards: to avoid a header file from being included multiple times. With traditional header guards, the developer is responsible for guarding the header (by using preprocessor directives `#ifndef`, `#define`, and `#endif`). With `#pragma once`, we’re requesting that the compiler guard the header. How exactly it does this is an implementation-specific detail.
+
+
+
+## 通过 static\_cast 运算符进行显式类型转换的简介
+
+回到我们最近的`print()`示例，如果我们_有意_想要将双精度值传递给一个采用整数的函数（知道转换后的值会删除任何小数部分？）关闭“将警告视为错误”只是为了让我们的程序编译是一个坏主意，因为这样我们每次编译时都会收到警告（其中我们很快就会学会忽略），并且我们可能会忽视有关更严重问题的警告。
+
+C++ 支持第二种类型转换方法，称为显式类型转换。 **显式类型转换**允许我们（程序员）显式告诉编译器将值从一种类型转换为另一种类型，并且我们对此承担全部责任该转换的结果（意味着如果转换导致价值损失，那是我们的错）。
+
+要执行显式类型转换，在大多数情况下我们将使用 `static_cast` 运算符。 `static cast` 的语法看起来有点有趣：
+
+```
+static_cast
+```
+
+static\_cast 将表达式中的值作为输入，并返回转换为 _new\_type_ 指定类型的值（例如 int、bool、字符，双精度）。
+
+```cpp
+#include <iostream>
+
+void print(int x)
+{
+	std::cout << x << '\n';
+}
+
+int main()
+{
+	print( static_cast<int>(5.5) ); // explicitly convert double value 5.5 to an int
+
+	return 0;
+}
+```
+
+
+
+## 编译时常量
+
+A **编译时常量**是一个常量，其值为常量表达式。文字（例如“1”、“2.3”和“Hello，world！”）是一种编译时常量。
+
+Const 变量可能是也可能不是编译时常量（取决于它们的初始化方式）。
+
+编译时常量
+
+如果 const 变量的初始值设定项是常量表达式，则该变量是编译时常量。
+
+考虑一个与上面类似的使用 const 变量的程序：
+
+```cpp
+#include <iostream>
+
+int main()
+{
+	const int x { 3 };  // x is a compile-time const
+	const int y { 4 };  // y is a compile-time const
+
+	const int z { x + y }; // x + y is a constant expression, so z is compile-time const
+
+	std::cout << z << '\n';
+
+	return 0;
+}
+```
+
+由于`x`和`y`的初始化值为常量表达式，`x`和`y` 是编译时常量。这意味着 `x + y` 也是常量表达式。因此，当编译器编译此程序时，它可以计算 `x + y` 的值，并将常量表达式替换为结果文字`7`。
+
+请注意，编译时 const 的初始值设定项可以是任何常量表达式。以下所有内容都将是编译时 const 变量：
+
+```cpp
+const int z { 3 };     // 3 is a constant expression, so z is compile-time const
+const int a { 1 + 2 }; // 1 + 2 is a constant expression, so a is compile-time const
+const int b { z * 2 }; // z * 2 is a constant expression, so b is compile-time const
+```
+
+编译时 const 变量通常用作命名常量：
+
+```cpp
+const double gravity { 9.8 };
+```
+
+
+
+### Constexpr/consteval 函数
+
+
+
+## string
+
+### 字符串输入`std::cin`
+
+将 `std::string` 与 `std::cin` 一起使用可能会产生一些惊喜！考虑以下示例：
+
+```cpp
+#include <iostream>
+#include <string>
+
+int main()
+{
+    std::cout << "Enter your full name: ";
+    std::string name{};
+    std::cin >> name; // this won't work as expected since std::cin breaks on whitespace
+
+    std::cout << "Enter your favorite color: ";
+    std::string color{};
+    std::cin >> color;
+
+    std::cout << "Your name is " << name << " and your favorite color is " << color << '\n';
+
+    return 0;
+}
+```
+
+以下是该程序示例运行的结果：
+
+```
+输入您的全名：John Doe
+输入您最喜欢的颜色：您的名字是 John，您最喜欢的颜色是 Doe
+```
+
+嗯，这是不对的！发生了什么？事实证明，当使用 `operator>>` 从 `std::cin` 中提取字符串时，`operator>>` 仅返回遇到的第一个空格之前的字符。任何其他字符都留在`std::cin`内，等待下一次提取。
+
+因此，当我们使用 `operator>>` 将输入提取到变量 `name` 时，仅提取了 `"John"`，留下了 而不是等待我们输入颜色。然后程序结束。 时，它会提取 将输入提取到变量 。然后，当我们使用 `" Doe"` 内 `std::cinoperator>>color"Doe"`
+
+使用`std::getline()`输入文字
+
+要将整行输入读取到字符串中，最好使用 `std::getline()` 函数。 `std::getline()` 需要两个参数：第一个是 `std::cin`，第二个是字符串变量。
+
+这里是使用 `std::getline()` 的与上面相同的程序：
+
+```cpp
+#include <iostream>
+#include <string> // For std::string and std::getline
+
+int main()
+{
+    std::cout << "Enter your full name: ";
+    std::string name{};
+    std::getline(std::cin >> std::ws, name); // read a full line of text into name
+
+    std::cout << "Enter your favorite color: ";
+    std::string color{};
+    std::getline(std::cin >> std::ws, color); // read a full line of text into color
+
+    std::cout << "Your name is " << name << " and your favorite color is " << color << '\n';
+
+    return 0;
+}
+```
+
+现在我们的程序按预期工作：
+
+```
+输入您的全名：John Doe
+输入您最喜欢的颜色：蓝色
+你的名字是 John Doe，你最喜欢的颜色是蓝色
+```
+
+
+
+### std::ws
+
+
+
+在 C++20 中，还可以使用 `std::ssize()` 函数获取 `std::string` 作为带符号整数值的长度：
+
+```cpp
+#include <iostream>
+#include <string>
+
+int main()
+{
+    std::string name{ "Alex" };
+    std::cout << name << " has " << std::ssize(name) << " characters\n";
+
+    return 0;
+}
+```
+
+
+
+### 初始化 `std::string` 成本高昂
+
+每当初始化 std::string 时，都会创建用于初始化它的字符串的副本。复制字符串的成本很高，因此应注意尽量减少复制的数量。
+
+### 不要按值传递`std::string`
+
+当 `std::string` 按值传递给函数时，`std::string` 函数形参必须使用实参进行实例化和初始化。这会产生昂贵的副本。 - - > 使用 `std::string_view` 参数
+
+### 返回一个`std::string`
+
+当函数按值返回给调用者时，返回值通常会从函数复制回调用者。因此，您可能认为不应按值返回 `std::string`，因为这样做会返回 `std::string` 的昂贵副本。
+
+但是，根据经验，当 return 语句的表达式解析为以下任何一种情况时，可以按值返回 `std::string`：
+
+* 类型为 `std::string` 的局部变量。
+* A `std::string` 由函数调用或运算符返回的值。
+* A `std::string` 作为 return 语句的一部分创建。
+
+在大多数其他情况下，不要按值返回`std::string`，因为这样做会产生昂贵的副本。
+
+如果返回 C 样式字符串文字，请使用 `std::string_view` 返回类型
+
+
+
+## std::string\_view C++17
+
+为了解决 `std::string` 初始化（或复制）成本高昂的问题，C++17 引入了 `std::string_view` （位于 `std::string_view` 提供对 _现有_ 字符串（C 风格字符串、`std::string`，或另一个`std::string_view`），无需制作副本。 **只读**表示我们可以访问和使用正在查看的值，但不能修改它。
+
+```cpp
+#include <iostream>
+#include <string_view> // C++17
+
+// str provides read-only access to whatever argument is passed in
+void printSV(std::string_view str) // now a std::string_view
+{
+    std::cout << str << '\n';
+}
+
+int main()
+{
+    std::string_view s{ "Hello, world!" }; // now a std::string_view
+    printSV(s);
+
+    return 0;
+}
+```
+
+### `std::string_view`可以用许多不同类型的字符串进行初始化
+
+a 的优点之一`std::string_view` 就是它的灵活性。 `std::string_view` 对象可以使用 C 样式字符串、`std::string` 或其他 `std::string_view` 进行初始化：
+
+```cpp
+#include <iostream>
+#include <string>
+#include <string_view>
+
+int main()
+{
+    std::string_view s1 { "Hello, world!" }; // initialize with C-style string literal
+    std::cout << s1 << '\n';
+
+    std::string s{ "Hello, world!" };
+    std::string_view s2 { s };  // initialize with std::string
+    std::cout << s2 << '\n';
+
+    std::string_view s3 { s2 }; // initialize with std::string_view
+    std::cout << s3 << '\n';
+
+    return 0;
+}
+```
+
+### `std::string_view`参数将接受许多不同类型的字符串参数
+
+C 样式字符串和 `std::string` 都会隐式转换为 `std::string_view`。因此，`std::string_view` 参数将接受 C 样式字符串、`std::string` 或 `std::string_view` 类型的参数：
+
+```cpp
+#include <iostream>
+#include <string>
+#include <string_view>
+
+void printSV(std::string_view str)
+{
+    std::cout << str << '\n';
+}
+
+int main()
+{
+    printSV("Hello, world!"); // call with C-style string literal
+
+    std::string s2{ "Hello, world!" };
+    printSV(s2); // call with std::string
+
+    std::string_view s3 { s2 };
+    printSV(s3); // call with std::string_view
+
+    return 0;
+}
+```
+
+### `std::string_view`不会隐式转换为`std::string`
+
+因为 `std::string` 会复制其初始值设定项（成本高昂），C++ 不允许将 `std::string_view` 隐式转换为 参数，并在可能不需要此类副本的情况下无意中生成昂贵的副本。 参数传递给 `std::string`。这是为了防止意外地将 `std::string_viewstd::string`
+
+### Assignment changes what the `std::string_view` is viewing
+
+Assigning a new string to a `std::string_view` causes the `std::string_view` to view the new string. It does not modify the prior string being viewed in any way.
+
+The following example illustrates this:
+
+```cpp
+#include <iostream>
+#include <string>
+#include <string_view>
+
+int main()
+{
+    std::string name { "Alex" };
+    std::string_view sv { name }; // sv is now viewing name
+    std::cout << sv << '\n'; // prints Alex
+
+    sv = "John"; // sv is now viewing "John" (does not change name)
+    std::cout << sv << '\n'; // prints John
+
+    std::cout << name << '\n'; // prints Alex
+
+    return 0;
+}
+```
+
+In the above example, `sv = "John"` causes `sv` to now view the string `"John"`. It does not change the value held by `name` (which is still `"Alex"`).
+
+### Literals for `std::string_view`
+
+默认情况下，双引号字符串文字是 C 样式字符串文字。我们可以通过在双引号字符串文字后面使用 后缀来创建类型为 `std::string_view` 的字符串文字。`sv`
+
+```cpp
+#include <iostream>
+#include <string>      // for std::string
+#include <string_view> // for std::string_view
+
+int main()
+{
+    using namespace std::string_literals;      // access the s suffix
+    using namespace std::string_view_literals; // access the sv suffix
+
+    std::cout << "foo\n";   // no suffix is a C-style string literal
+    std::cout << "goo\n"s;  // s suffix is a std::string literal
+    std::cout << "moo\n"sv; // sv suffix is a std::string_view literal
+
+    return 0;
+};
+```
+
+### 常量表达式`std::string_view`
+
+与 `std::string` 不同，`std::string_view` 完全支持 constexpr：
+
+```cpp
+#include <iostream>
+#include <string_view>
+
+int main()
+{
+    constexpr std::string_view s{ "Hello, world!" }; // s is a string symbolic constant
+    std::cout << s << '\n'; // s will be replaced with "Hello, world!" at compile-time
+
+    return 0;
+}
+```
+
+这使得 `constexpr std::string_view` 成为需要字符串符号常量时的首选。
+
+### 使用不当`std::string_view`
+
+让我们看一下误用 `std::string_view` 给我们带来麻烦的几个案例。
+
+这是我们的第一个例子：
+
+```cpp
+#include <iostream>
+#include <string>
+#include <string_view>
+
+int main()
+{
+    std::string_view sv{};
+
+    { // create a nested block
+        std::string s{ "Hello, world!" }; // create a std::string local to this nested block
+        sv = s; // sv is now viewing s
+    } // s is destroyed here, so sv is now viewing an invalid string
+
+    std::cout << sv << '\n'; // undefined behavior
+
+    return 0;
+}
+```
+
+在此示例中，我们在嵌套块内创建 `std::string s`（先不用担心嵌套块是什么）。然后我们设置`sv`查看`s`。 `s` 然后在嵌套块的末尾被销毁。 `sv` 不知道 `s` 已被销毁。当我们使用 `sv` 时，我们将访问无效对象，并导致未定义的行为。
+
+这是同一问题的另一个变体，我们使用函数的 返回值初始化 `std::string_view`：`std::string`
+
+```cpp
+#include <iostream>
+#include <string>
+#include <string_view>
+
+std::string getName()
+{
+    std::string s { "Alex" };
+    return s;
+}
+
+int main()
+{
+  std::string_view name { getName() }; // name initialized with return value of function
+  std::cout << name << '\n'; // undefined behavior
+
+  return 0;
+}
+```
+
+这与前面的示例类似。 `getName()` 函数返回包含字符串“Alex”的 `std::string`。返回值是临时对象，在包含函数调用的完整表达式末尾被销毁。我们必须立即使用这个返回值，或者复制它以供稍后使用。
+
+但是`std::string_view`不复印。相反，它创建临时返回值的视图，然后将其销毁。这使得我们的 `std::string_view` 悬空（查看无效对象），并且打印视图会导致未定义的行为。
+
+以下是上述内容的不太明显的变体：
+
+```cpp
+#include <iostream>
+#include <string>
+#include <string_view>
+
+int main()
+{
+    using namespace std::string_literals;
+    std::string_view name { "Alex"s }; // "Alex"s creates a temporary std::string
+    std::cout << name << '\n'; // undefined behavior
+
+    return 0;
+}
+```
+
+A `std::string` 文字（通过 `s` 文字后缀创建）创建一个临时 `std::string` 对象。因此，在本例中，`"Alex"s` 创建一个临时的 `std::string`，然后我们将其用作 `name` 的初始值设定项。此时，`name`查看临时`std::string`。然后临时的 `std::string` 被销毁，留下 `name` 悬空。当我们使用 `name` 时，我们会得到未定义的行为。
+
+### Be careful returning a `std::string_view`
+
+`std::string_view` can be used as the return value of a function. However, this is often dangerous.
+
+Because local variables are destroyed at the end of the function, returning a `std::string_view` to a local variable will result in the returned `std::string_view` being invalid, and further use of that `std::string_view` will result in undefined behavior. For example:
+
+```cpp
+#include <iostream>
+#include <string>
+#include <string_view>
+
+std::string_view getBoolName(bool b)
+{
+    std::string t { "true" };  // local variable
+    std::string f { "false" }; // local variable
+
+    if (b)
+        return t;  // return a std::string_view viewing t
+
+    return f; // return a std::string_view viewing f
+} // t and f are destroyed at the end of the function
+
+int main()
+{
+    std::cout << getBoolName(true) << ' ' << getBoolName(false) << '\n'; // undefined behavior
+
+    return 0;
+}
+```
+
+In the above example, when `getBoolName(true)` is called, the function returns a `std::string_view` that is viewing `t`. However, `t` is destroyed at the end of the function. This means the returned `std::string_view` is viewing an object that has been destroyed. So when the returned `std::string_view` is printed, undefined behavior results.
+
+Your compiler may or may not warn you about such cases.
+
+There are two main cases where a `std::string_view` can be returned safely. First, because C-style string literals exist for the entire program, it’s fine to return C-style string literals from a function that has a return type of `std::string_view`.
+
+```cpp
+#include <iostream>
+#include <string_view>
+
+std::string_view getBoolName(bool b)
+{
+    if (b)
+        return "true";  // return a std::string_view viewing "true"
+
+    return "false"; // return a std::string_view viewing "false"
+} // "true" and "false" are not destroyed at the end of the function
+
+int main()
+{
+    std::cout << getBoolName(true) << ' ' << getBoolName(false) << '\n'; // ok
+
+    return 0;
+}
+```
+
+### 查看修改功能
+
+想象一下你房子里的一扇窗户，看着停在街上的一辆汽车。你可以透过窗户看到汽车，但你不能触摸或移动汽车。您的窗户仅提供汽车的视野，汽车是一个完全独立的对象。
+
+许多窗户都有窗帘，可以让我们改变视野。我们可以关闭左侧或右侧的窗帘以减少我们能看到的东西。我们不改变外面的东西，我们只是减少可见区域。
+
+因为`std::string_view`是一个视图，它包含让我们通过“关闭窗帘”来修改视图的函数。这不会以任何方式修改正在查看的字符串，只是修改视图本身。
+
+* `remove_prefix()` 成员函数删除视图左侧的字符。
+* `remove_suffix()` 成员函数删除视图右侧的字符。
+
+```cpp
+#include <iostream>
+#include <string_view>
+
+int main()
+{
+	std::string_view str{ "Peach" };
+	std::cout << str << '\n';
+
+	// Remove 1 character from the left side of the view
+	str.remove_prefix(1);
+	std::cout << str << '\n';
+
+	// Remove 2 characters from the right side of the view
+	str.remove_suffix(2);
+	std::cout << str << '\n';
+
+	str = "Peach"; // reset the view
+	std::cout << str << '\n';
+
+	return 0;
+}
+```
+
+This program produces the following output:
+
+```
+Peach
+each
+ea
+Peach
+```
+
+### `std::string_view`可能或可能不是空终止
+
+仅查看较大字符串的子字符串的能力会带来一个值得注意的结果：`std::string_view` 可能会也可能不会以 null 结尾。考虑字符串“snowball”，它以 null 结尾。如果 `std::string_view` 查看整个字符串，那么它正在查看一个以 null 结尾的字符串。但是，如果 `std::string_view` 仅查看子字符串“now”，则该子字符串不是以 null 结尾的（下一个字符是“b”）。
+
+
+
+## &#x20;Internal linkage
+
+具有内部链接的标识符**内部链接**可以在单个翻译单元中查看和使用，但无法从其他翻译单元访问（即也就是说，它没有暴露给链接器）。这意味着，如果两个源文件具有具有内部链接的相同命名标识符，则这些标识符将被视为独立的（并且不会因重复定义而导致 ODR 违规）。
+
+具有内部链接的全局变量
+
+具有内部链接的全局变量有时称为**内部变量**。
+
+要将非常量全局变量设为内部变量，我们使用`static` 关键字。
+
+```cpp
+#include <iostream>
+
+static int g_x{}; // non-constant globals have external linkage by default, but can be given internal linkage via the static keyword
+
+const int g_y{ 1 }; // const globals have internal linkage by default
+constexpr int g_z{ 2 }; // constexpr globals have internal linkage by default
+
+int main()
+{
+    std::cout << g_x << ' ' << g_y << ' ' << g_z << '\n';
+    return 0;
+}
+```
+
+Const 和 constexpr 全局变量默认具有内部链接（因此不需要 `static` 关键字 - 如果使用它，它将被忽略）。
+
+
+
+## 内联函数和变量
+
+现代的 inline 关键字
+
+在前面的章节中，我们提到不应在头文件中实现函数（具有外部链接），因为当这些头文件包含在多个 .cpp 文件中时，函数定义将被复制到多个 .cpp 文件中。然后这些文件将被编译，链接器将抛出一个错误，因为它会注意到您多次定义了同一个函数，这违反了单一定义规则。
+
+在现代 C++ 中，术语`inline` 已演变为“允许多个定义”的意思。因此，内联函数是一种允许在多个文件中定义的函数。
+
+内联函数有两个主要要求：
+
+* 编译器需要能够在使用该函数的每个翻译单元中查看内联函数的完整定义（前向声明本身是不够的）。如果还提供了前向声明，则定义可以在使用点之后发生。
+* 内联函数的每个定义必须相同，否则将导致未定义的行为。
+
+pi.h:
+
+```cpp
+#ifndef PI_H
+#define PI_H
+
+inline double pi() { return 3.14159; }
+
+#endif
+```
+
+main.cpp:
+
+```cpp
+#include <iostream>
+#include "pi.h" // will include a copy of pi() here
+
+double circumference(double radius); // forward declaration
+
+int main()
+{
+    std::cout << pi() << '\n';
+    std::cout << circumference(2.0) << '\n';
+
+    return 0;
+}
+```
+
+math.cpp
+
+```cpp
+#include "pi.h" // will include a copy of pi() here
+
+double circumference(double radius)
+{
+    return 2.0 * pi() * radius;
+}
+```
+
+这对于**仅头文件库**特别有用，这些库是实现某些功能的一个或多个头文件（没有 .cpp 文件）包括）。仅标头库很受欢迎，因为不需要将源文件添加到项目中即可使用它们，也不需要链接任何内容。您只需 #include 仅标头库，然后就可以使用它。
+
+在大多数情况下，您不应将函数或变量标记为内联，除非您在头文件中定义它们（并且它们尚未隐式内联）。
+
+### 内联变量C++17
+
+在上面的示例中，`pi()` 被编写为返回常量值的函数。如果将 `pi` 实现为 (const) 变量，则会更加直接。然而，在 C++17 之前，这样做存在一些障碍并且效率低下。
+
+C++17 引入了**内联变量**，即允许在多个文件中定义的变量。内联变量的工作方式与内联函数类似，并且具有相同的要求（编译器必须能够在使用该变量的任何地方看到相同的完整定义）。
+
+以下是隐式内联的：
+
+* 静态 constexpr 变量
+
+与 constexpr 函数不同，（非静态）constexpr 变量默认不是内联的！
+
+## 在多个文件之间共享全局常量
+
+作为内联变量的全局常量
+
+constants.h:
+
+```cpp
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
+// define your own namespace to hold constants
+namespace constants
+{
+    inline constexpr double pi { 3.14159 }; // note: now inline constexpr
+    inline constexpr double avogadro { 6.0221413e23 };
+    inline constexpr double myGravity { 9.2 }; // m/s^2 -- gravity is light on this planet
+    // ... other related constants
+}
+#endif
+```
+
+main.cpp:
+
+```cpp
+#include "constants.h"
+
+#include <iostream>
+
+int main()
+{
+    std::cout << "Enter a radius: ";
+    double radius{};
+    std::cin >> radius;
+
+    std::cout << "The circumference is: " << 2 * radius * constants::pi << '\n';
+
+    return 0;
+}
+```
+
+We can include `constants.h` into as many code files as we want, but these variables will only be instantiated once and shared across all code files.
+
+This method does retain the downside of requiring every file that includes the constants header be recompiled if any constant value is changed.
+
+
+
+## 静态局部变量
+
+局部变量默认具有`automatic duration` ，这意味着它们在定义时创建，并在退出块时销毁。
+
+在局部变量上使用 `static` 关键字会将其持续时间从 `automatic duration` 更改为 `static duration`。这意味着变量现在在程序开始时创建，并在程序结束时销毁（就像全局变量一样）。因此，静态变量即使超出范围也将保留其值！
+
+避免使用`static`局部变量，除非该变量永远不需要重置。
+
+
+
+
+
+
+
+
+
+
 
 
 

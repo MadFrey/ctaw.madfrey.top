@@ -1327,15 +1327,563 @@ This method does retain the downside of requiring every file that includes the c
 
 
 
+## 类的成员默认是私有的
 
+具有_私有_访问级别的成员称为_私有成员_. **私有成员**是类类型的成员，只能由同一类的其他成员访问。
 
+```cpp
+#include <iostream>
 
+class Date // now a class instead of a struct
+{
+    // class members are private by default, can only be accessed by other members
+    int m_year {};     // private by default
+    int m_month {};    // private by default
+    int m_day {};      // private by default
 
+    void print() const // private by default
+    {
+        // private members can be accessed in member functions
+        std::cout << m_year << '/' << m_month << '/' << m_day;
+    }
+};
 
+int main()
+{
+    Date today { 2020, 10, 14 }; // compile error: can no longer use aggregate initialization
 
+    // private members can not be accessed by the public
+    today.m_day = 16; // compile error: the m_day member is private
+    today.print();    // compile error: the print() member function is private
 
+    return 0;
+}
+```
 
+### 通过访问说明符设置访问级别
 
+默认情况下，结构（和联合）的成员是公共的，类的成员是私有的。
+
+但是，我们可以使用**访问说明符**显式设置成员的访问级别。访问说明符设置该说明符后的_所有成员_的访问级别。 C++ 提供了三种访问说明符：`public:`、`private:` 和 `protected:`。
+
+在下面的示例中，我们使用 `public:` 访问说明符来确保 `print()` 成员函数可供公众使用，并且 < /span>`private:` 访问说明符使我们的数据成员私有。
+
+```cpp
+class Date
+{
+// Any members defined here would default to private
+
+public: // here's our public access specifier
+
+    void print() const // public due to above public: specifier
+    {
+        // members can access other private members
+        std::cout << m_year << '/' << m_month << '/' << m_day;
+    }
+
+private: // here's our private access specifier
+
+    int m_year { 2020 };  // private due to above private: specifier
+    int m_month { 14 }; // private due to above private: specifier
+    int m_day { 10 };   // private due to above private: specifier
+};
+
+int main()
+{
+    Date d{};
+    d.print();  // okay, main() allowed to access public members
+
+    return 0;
+}
+```
+
+该示例可编译。由于 `print()` 由于 `public:` 访问说明符而成为公共成员，因此允许 `main()`（属于公共成员）访问它。
+
+因为我们有私有成员，所以无法聚合初始化`d`。对于此示例，我们使用默认成员初始化（作为临时解决方法）。
+
+由于类默认为私有访问，因此可以省略前导`private:` 访问说明符：
+
+```cpp
+class Foo
+{
+// private access specifier not required here since classes default to private members
+    int m_something {};  // private by default
+};
+```
+
+### 访问功能
+
+**访问函数**是一个普通的公共成员函数，其作用是检索或更改私有成员变量的值。
+
+访问函数有两种类型：getter 和 setter。 **获取器**（有时也称为**访问器**）是返回私有成员变量的值。 **Setter**（有时也称为**mutators**）是公共成员函数，用于设置私有成员变量的值。
+
+Getter 通常被设为 const，因此可以在 const 和非 const 对象上调用它们。 Setter 应该是非常量的，这样他们就可以修改数据成员。
+
+出于说明目的，让我们更新我们的 `Date` 类以拥有完整的 getter 和 setter 集：
+
+```cpp
+#include <iostream>
+
+class Date
+{
+private:
+    int m_year { 2020 };
+    int m_month { 10 };
+    int m_day { 14 };
+
+public:
+    void print()
+    {
+        std::cout << m_year << '/' << m_month << '/' << m_day << '\n';
+    }
+
+    int getYear() const { return m_year; }        // getter for year
+    void setYear(int year) { m_year = year; }     // setter for year
+
+    int getMonth() const  { return m_month; }     // getter for month
+    void setMonth(int month) { m_month = month; } // setter for month
+
+    int getDay() const { return m_day; }          // getter for day
+    void setDay(int day) { m_day = day; }         // setter for day
+};
+
+int main()
+{
+    Date d{};
+    d.setYear(2021);
+    std::cout << "The year is: " << d.getYear() << '\n';
+
+    return 0;
+}
+```
+
+## 返回数据成员引用的成员函数
+
+“通过引用返回的对象必须在函数返回后存在”。这意味着我们不应该通过引用返回局部变量，因为在局部变量被销毁后，引用将保持悬空状态。但是，通常可以通过引用返回通过引用传递的函数参数或具有静态持续时间的变量（静态局部变量或全局变量），因为它们通常不会在函数返回后被销毁。
+
+例如：
+
+```cpp
+// Takes two std::string objects, returns the one that comes first alphabetically
+const std::string& firstAlphabetical(const std::string& a, const std::string& b)
+{
+	return (a < b) ? a : b; // We can use operator< on std::string to determine which comes first alphabetically
+}
+
+int main()
+{
+	std::string hello { "Hello" };
+	std::string world { "World" };
+
+	std::cout << firstAlphabetical(hello, world); // either hello or world will be returned by reference
+
+	return 0;
+}
+```
+
+### 右值隐式对象并按引用返回
+
+但是，如果我们的隐式对象是右值（例如某些按值返回的函数的返回值）怎么办？右值对象在创建它们的完整表达式结束时被销毁。当右值对象被销毁时，对该右值成员的任何引用都将失效并悬空，并且使用此类引用将产生未定义的行为。
+
+因此，对右值对象成员的引用只能在创建右值对象的完整表达式中安全地使用。
+
+```cpp
+#include <iostream>
+#include <string>
+#include <string_view>
+
+class Employee
+{
+	std::string m_name{};
+
+public:
+	void setName(std::string_view name) { m_name = name; }
+	const auto& getName() const { return m_name; } //  getter returns by const reference
+};
+
+// createEmployee() returns an Employee by value (which means the returned value is an rvalue)
+Employee createEmployee(std::string_view name)
+{
+	Employee e;
+	e.setName(name);
+	return e;
+}
+
+int main()
+{
+	// Case 1: okay: use returned reference to member of rvalue class object in same expression
+	std::cout << createEmployee("Frank").getName();
+
+	// Case 2: bad: save returned reference to member of rvalue class object for use later
+	const std::string& ref { createEmployee("Garbo").getName() }; // reference becomes dangling when return value of createEmployee() is destroyed
+	std::cout << ref; // undefined behavior
+
+	// Case 3: okay: copy referenced value to local variable for use later
+	std::string val { createEmployee("Hans").getName() }; // makes copy of referenced member
+	std::cout << val; // okay: val is independent of referenced member
+
+	return 0;
+}
+```
+
+## 构造函数简介
+
+一旦我们将任何成员变量设为私有（以隐藏我们的数据），我们的类类型就不再是聚合（因为聚合不能拥有私有成员）。这意味着我们不再能够使用聚合初始化：
+
+```cpp
+class Foo // Foo is not an aggregate (has private members)
+{
+    int m_x {};
+    int m_y {};
+};
+
+int main()
+{
+    Foo foo { 6, 7 }; // compile error: can not use aggregate initialization
+
+    return 0;
+}
+```
+
+### **构造函数**是一个特殊的成员函数，在创建非聚合类类型对象后自动调用。
+
+当定义非聚合类类型对象时，编译器会查看是否可以找到与调用者提供的初始化值（如果有）匹配的可访问构造函数。
+
+* 如果找到可访问的匹配构造函数，则为该对象分配内存，然后调用构造函数。
+* 如果找不到可访问的匹配构造函数，则会生成编译错误。
+
+### 命名构造函数
+
+与普通成员函数不同，构造函数对于如何命名有特定的规则：
+
+* 构造函数必须与类具有相同的名称（大小写相同）。对于模板类，此名称不包括模板参数。
+* 构造函数没有返回类型（甚至没有`void`）。
+
+由于构造函数通常是类接口的一部分，因此它们通常是公共的。
+
+```cpp
+#include <iostream>
+
+class Foo
+{
+private:
+    int m_x {};
+    int m_y {};
+
+public:
+    Foo(int x, int y) // here's our constructor function that takes two initializers
+    {
+        std::cout << "Foo(" << x << ", " << y << ") constructed\n";
+    }
+
+    void print() const
+    {
+        std::cout << "Foo(" << m_x << ", " << m_y << ")\n";
+    }
+};
+
+int main()
+{
+    Foo foo{ 6, 7 }; // calls Foo(int, int) constructor
+    foo.print();
+
+    return 0;
+}
+```
+
+## 构造函数成员初始值设定项列表
+
+```cpp
+#include <iostream>
+
+class Foo
+{
+private:
+    int m_x {};
+    int m_y {};
+
+public:
+    Foo(int x, int y)
+        : m_x { x }, m_y { y } // here's our member initialization list
+    {
+        std::cout << "Foo(" << x << ", " << y << ") constructed\n";
+    }
+
+    void print() const
+    {
+        std::cout << "Foo(" << m_x << ", " << m_y << ")\n";
+    }
+};
+
+int main()
+{
+    Foo foo{ 6, 7 };
+    foo.print();
+
+    return 0;
+}
+```
+
+成员初始值设定项列表在构造函数参数之后定义。它以冒号 (:) 开头，然后列出要初始化的每个成员以及该变量的初始化值，并用逗号分隔。必须在这里使用直接形式的初始化（最好使用大括号，但圆括号也可以）——使用复制初始化（使用等于）在这里不起作用。另请注意，成员初始值设定项列表不以分号结尾。
+
+### 成员初始值设定项列表格式
+
+C++ 提供了很大的自由度来根据您的喜好格式化成员初始值设定项列表，因为它不关心您将冒号、逗号或空格放在哪里。
+
+以下样式都是有效的（并且您可能会在实践中看到这三种样式）：
+
+```cpp
+Foo(int x, int y) : m_x { x }, m_y { y }
+{
+}
+```
+
+```cpp
+Foo(int x, int y) :
+    m_x { x },
+    m_y { y }
+{
+}
+```
+
+```cpp
+Foo(int x, int y)
+    : m_x { x }
+    , m_y { y }
+{
+}
+```
+
+### 成员初始化顺序
+
+因为 C++ 标准是这样规定的，所以成员初始值设定项列表中的成员始终按照它们在类内部定义的顺序（而不是按照它们在成员初始值设定项列表中定义的顺序）进行初始化。
+
+在上面的例子中，由于在类定义中`m_x`是在`m_y`之前定义的，所以`m_x`会先被初始化（即使它没有在成员初始值设定项列表中首先列出）。
+
+因为我们直观地期望变量从左到右初始化，这可能会导致发生微妙的错误。考虑以下示例：
+
+```cpp
+#include <algorithm> // for std::max
+#include <iostream>
+
+class Foo
+{
+private:
+    int m_x{};
+    int m_y{};
+
+public:
+    Foo(int x, int y)
+        : m_y{ std::max(x, y) }, m_x{ m_y } // issue on this line
+    {
+    }
+
+    void print() const
+    {
+        std::cout << "Foo(" << m_x << ", " << m_y << ")\n";
+    }
+};
+
+int main()
+{
+    Foo foo{ 6, 7 };
+    foo.print();
+
+    return 0;
+}
+```
+
+打印出以下结果：
+
+```cpp
+Foo(-858993460, 7)
+```
+
+发生了什么？尽管 `m_y` 在成员初始化列表中首先列出，但由于 `m_x` 在类中首先定义，因此 `m_x` 首先被初始化。并且 `m_x` 被初始化为 `m_y` 的值，该值尚未初始化。最后，`m_y` 被初始化为较大的初始化值。
+
+为了帮助防止此类错误，成员初始值设定项列表中的成员应按照它们在类中定义的顺序列出。如果成员初始化无序，某些编译器会发出警告。
+
+### 隐式默认构造函数
+
+如果非聚合类类型对象没有用户声明的构造函数，编译器将生成一个公共默认构造函数（以便该类可以进行值或默认初始化）。此构造函数称为**隐式默认构造函数**。
+
+考虑以下示例：
+
+```cpp
+#include <iostream>
+
+class Foo
+{
+private:
+    int m_x{};
+    int m_y{};
+
+    // Note: no constructors declared
+};
+
+int main()
+{
+    Foo foo{};
+
+    return 0;
+}
+```
+
+该类没有用户声明的构造函数，因此编译器将为我们生成一个隐式的默认构造函数。该构造函数将用于实例化`foo{}`。
+
+隐式默认构造函数相当于没有参数、没有成员初始值设定项列表且构造函数主体中没有语句的构造函数。换句话说，对于上面的 `Foo` 类，编译器会生成以下内容：
+
+```cpp
+public:
+    Foo() // implicitly generated default constructor
+    {
+    }
+```
+
+当我们的类没有数据成员时，隐式默认构造函数最有用。如果一个类有数据成员，我们可能希望使用用户提供的值来初始化它们，而隐式默认构造函数不足以实现这一点。
+
+### 使用`= default`生成默认构造函数
+
+如果我们编写一个与隐式生成的默认构造函数等效的默认构造函数，我们可以使用以下语法告诉编译器为我们生成隐式默认构造函数：
+
+```cpp
+#include <iostream>
+
+class Foo
+{
+private:
+    int m_x {};
+    int m_y {};
+
+public:
+    Foo() = default; // generate an implicit default constructor
+
+    Foo(int x, int y)
+        : m_x { x }, m_y { y }
+    {
+        std::cout << "Foo(" << x << ", " << y << ") constructed\n";
+    }
+};
+
+int main()
+{
+    Foo foo{}; // calls Foo() default constructor
+
+    return 0;
+}
+```
+
+在上面的示例中，由于我们有一个用户声明的构造函数 (`Foo(int, int)`)，因此通常不会生成隐式定义的默认构造函数。然而，因为我们已经告诉编译器生成这样的构造函数，所以它会生成。此构造函数随后将被我们的 `foo{}` 实例化使用。
+
+## 类型别名
+
+在 C++ 中，**using** 是为现有数据类型创建别名的关键字。要创建这样的类型别名，我们使用 `using` 关键字，后跟类型别名的名称，然后是等号和现有数据类型。例如：
+
+```cpp
+using Distance = double; // define Distance as an alias for type double
+```
+
+一旦定义，类型别名就可以在任何需要类型的地方使用。例如，我们可以创建一个以类型别名作为类型的变量：
+
+```cpp
+Distance milesToDestination{ 3.4 }; // defines a variable of type double
+```
+
+当编译器遇到类型别名时，它将替换为别名类型。例如：
+
+```cpp
+#include <iostream>
+
+int main()
+{
+    using Distance = double; // define Distance as an alias for type double
+
+    Distance milesToDestination{ 3.4 }; // defines a variable of type double
+
+    std::cout << milesToDestination << '\n'; // prints a double value
+
+    return 0;
+}
+```
+
+这打印：
+
+```
+3.4
+```
+
+在上面的程序中，我们首先定义`Distance`作为类型`double`的别名。
+
+接下来，我们定义一个名为 `milesToDestination` 且类型为 alias `Distance` 的变量。因为编译器知道 `Distance` 是类型别名，所以它将使用别名类型，即 `double`。因此，变量 `milesToDestination` 实际上被编译为 `double` 类型的变量，并且在所有方面它的行为都与 `double` 相同。
+
+最后，我们打印 `milesToDestination` 的值，该值打印为 `double` 值。
+
+### 类型定义
+
+A **typedef**（“类型定义”的缩写）是一种为类型创建别名的较旧方法。要创建 typedef 别名，我们使用 `typedef` 关键字：
+
+```cpp
+// The following aliases are identical
+typedef long Miles;
+using Miles = long;
+```
+
+出于向后兼容性的原因，Typedef 仍在 C++ 中使用，但它们已在很大程度上被现代 C++ 中的类型别名所取代。
+
+## 析构函数
+
+与构造函数一样，析构函数也有特定的命名规则：
+
+1. 析构函数必须与类同名，前面有波浪号 (\~)。
+2. 析构函数不能接受参数。
+3. 析构函数没有返回类型。
+
+一个类只能有一个析构函数。
+
+一般来说，不应该显式调用析构函数（因为当对象被销毁时它将自动调用），因为很少有想要多次清理对象的情况。
+
+析构函数可以安全地调用其他成员函数，因为直到析构函数执行后对象才会被销毁。
+
+```cpp
+#include <iostream>
+
+class Simple
+{
+private:
+    int m_id {};
+
+public:
+    Simple(int id)
+        : m_id { id }
+    {
+        std::cout << "Constructing Simple " << m_id << '\n';
+    }
+
+    ~Simple() // here's our destructor
+    {
+        std::cout << "Destructing Simple " << m_id << '\n';
+    }
+
+    int getID() const { return m_id; }
+};
+
+int main()
+{
+    // Allocate a Simple
+    Simple simple1{ 1 };
+    {
+        Simple simple2{ 2 };
+    } // simple2 dies here
+
+    return 0;
+} // simple1 dies here
+```
+
+### 隐式析构函数
+
+如果非聚合类类型对象没有用户声明的析构函数，则编译器将生成一个具有空主体的析构函数。该析构函数称为隐式析构函数，它实际上只是一个占位符。
+
+如果类不需要在销毁时进行任何清理，那么根本不定义析构函数就可以了，让编译器为类生成一个隐式析构函数。
 
 
 

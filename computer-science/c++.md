@@ -1885,6 +1885,181 @@ int main()
 
 如果类不需要在销毁时进行任何清理，那么根本不定义析构函数就可以了，让编译器为类生成一个隐式析构函数。
 
+## 静态成员变量
+
+使用 `static` 关键字可以将类的成员变量设为静态。与普通成员变量不同，**静态成员变量**由类的所有对象共享。
+
+```cpp
+#include <iostream>
+
+struct Something
+{
+    static int s_value; // now static
+};
+
+int Something::s_value{ 1 }; // initialize s_value to 1
+
+int main()
+{
+    Something first{};
+    Something second{};
+
+    first.s_value = 2;
+
+    std::cout << first.s_value << '\n';
+    std::cout << second.s_value << '\n';
+    return 0;
+}
+```
+
+该程序产生以下输出：
+
+```
+2
+2
+```
+
+### 静态成员不与类对象关联
+
+虽然可以通过类的对象访问静态成员（如上例中的 `first.s_value` 和 `second.s_value` 所示），但静态成员即使在以下情况下也存在：没有该类的对象被实例化！这是有道理的：它们在程序开始时创建并在程序结束时销毁，因此它们的生命周期不像普通成员那样绑定到类对象。
+
+本质上，静态成员是存在于类的作用域区域内的全局变量。类的静态成员和命名空间内的普通变量之间几乎没有什么区别。
+
+由于静态成员`s_value`独立于任何类对象而存在，因此可以使用类名和范围解析运算符直接访问它（在本例中为`Something::s_value`):
+
+```cpp
+class Something
+{
+public:
+    static int s_value; // declares the static member variable
+};
+
+int Something::s_value{ 1 }; // defines the static member variable (we'll discuss this section below)
+
+int main()
+{
+    // note: we're not instantiating any objects of type Something
+
+    Something::s_value = 2;
+    std::cout << Something::s_value << '\n';
+    return 0;
+}
+```
+
+## 静态成员函数
+
+成员变量并不是唯一可以设为静态的成员类型。成员函数也可以设为静态。这是上面带有静态成员函数访问器的示例：
+
+```cpp
+#include <iostream>
+
+class Something
+{
+private:
+    static inline int s_value { 1 };
+
+public:
+    static int getValue() { return s_value; } // static member function
+};
+
+int main()
+{
+    std::cout << Something::getValue() << '\n';
+}
+```
+
+由于静态成员函数不与特定对象关联，因此可以使用类名和范围解析运算符直接调用它们（例如`Something::getValue()`）。与静态成员变量一样，它们也可以通过类类型的对象来调用，但不推荐这样做。
+
+### 静态成员函数没有`*this`指针
+
+静态成员函数有两个值得注意的有趣怪癖。首先，因为静态成员函数不附加到对象，所以它们没有 `this` 指针！仔细想想，这是有道理的——`this`指针总是指向成员函数正在处理的对象。静态成员函数不适用于对象，因此不需要 `this` 指针。
+
+其次，静态成员函数可以直接访问其他静态成员（变量或函数），但不能访问非静态成员。这是因为非静态成员必须属于类对象，而静态成员函数没有类对象可以使用！
+
+## 友元类和友元成员函数
+
+**友元类**是一个可以访问另一个类的私有成员和受保护成员的类。
+
+```cpp
+#include <iostream>
+
+class Storage
+{
+private:
+    int m_nValue {};
+    double m_dValue {};
+public:
+    Storage(int nValue, double dValue)
+       : m_nValue { nValue }, m_dValue { dValue }
+    { }
+
+    // Make the Display class a friend of Storage
+    friend class Display;
+};
+
+class Display
+{
+private:
+    bool m_displayIntFirst {};
+
+public:
+    Display(bool displayIntFirst)
+         : m_displayIntFirst { displayIntFirst }
+    {
+    }
+
+    // Because Display is a friend of Storage, Display members can access the private members of Storage
+    void displayStorage(const Storage& storage)
+    {
+        if (m_displayIntFirst)
+            std::cout << storage.m_nValue << ' ' << storage.m_dValue << '\n';
+        else // display double first
+            std::cout << storage.m_dValue << ' ' << storage.m_nValue << '\n';
+    }
+
+    void setDisplayIntFirst(bool b)
+    {
+         m_displayIntFirst = b;
+    }
+};
+
+int main()
+{
+    Storage storage { 5, 6.7 };
+    Display display { false };
+
+    display.displayStorage(storage);
+
+    display.setDisplayIntFirst(true);
+    display.displayStorage(storage);
+
+    return 0;
+}
+```
+
+因为 `Display` 类是 `Storage` 的友元，`Display` 成员可以访问任何 的私有成员a>`Storage` 他们有权访问的对象。
+
+该程序产生以下结果：
+
+```
+6.7 5
+5 6.7
+```
+
+关于友元类的一些附加说明。
+
+首先，即使 `Display` 是 `Storage` 的好友，`Display` 也无权访问 `*this` `Storage`对象的指针（因为`*this`实际上是一个函数参数）。
+
+第二，友谊不是相互的。仅仅因为 `Display` 是 `Storage` 的朋友并不意味着 `Storage` 也是 `Display` 的朋友。如果您希望两个类成为彼此的朋友，则两个类都必须声明对方为朋友。
+
+class友谊也是不可传递的。如果类 A 是 B 的友元，并且 B 是 C 的友元，这并不意味着 A 是 C 的友元。
+
+友谊也不是继承的。如果类 A 使 B 成为友元，则从 B 派生的类就不是 A 的友元。
+
+### Friend member functions
+
+可以将单个成员函数设为友元，而不是将整个类设为友元。
+
 
 
 
